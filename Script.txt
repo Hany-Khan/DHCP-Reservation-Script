@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# Check if user has sudo priveleges
+if [[ $EUID -ne 0 ]]; then
+  echo "This script needs root privileges. Re-running with sudo..."
+  exec sudo "$0" "$@"
+fi
+
+# Installing required packages
+sudo dnf install -y dhcp-client
+
+# Interface and file paths
+# Change interface if needed
+interface="ens160"
+lease="/var/lib/dhclient/dhclient-${interface}.leases"
+pidf="/run/dhclient-${interface}.pid"
+tmp1="/tmp/dhclient-probe-${interface}.conf.$$"
+tmp2="/tmp/dhclient-request-${interface}.conf.$$"
+
+echo
+echo "=== DHCP Reservation Script ==="
+echo
+
+# Clean up old dhclient instances
+echo "Cleaning up old dhclient processes..."
+dhclient -r -v "$interface"
+if [ -f "$pidf" ]; then
+    echo "[-] Killing existing dhclient PID $(cat "$pidf")"
+    kill "$(cat "$pidf")"
+fi
+pkill -f "dhclient.*$interface"
+rm -f "$pidf"
+
+echo
+read -p "What would you like the host portion to be assuming we are using a /24?: " host
+
+if ! [[ "$host" =~ ^[0-9]{1,3}$ ]] || (( host < 1 || host > 254 )); then
+  echo "Invalid host portion entered: $host (use 1-254). Exiting script...."
+  exit 1
+fi
+
+echo
+echo "Preparing/Cleaning the interface..."
+nmcli dev disconnect "$interface"
+ip addr flush dev "$interface"
+ip link set "$interface" up
+echo
+
+# Learn network
+echo "Sending DHCP probe to learn network prefix..."
+cat >"$tmp1" <<EOF
+interface "$interface" {
+  request subnet-mask, routers, domain-name-servers;
+  timeout 8;
+  retry 2;
+}
+EOF
+
+dhclient -4 -1 -cf "$tmp1" -sf /bin/true -pf "$pidf" -lf "$lease" "$interface"
+
+offerip=$(awk '/fixed-address/ {gsub(/;|\r/,""); ip=$2} END{print ip}' "$lease")
+mask=$(awk '/option subnet-mask/ {gsub(/;|\r/,""); m=$3} END{print m}' "$lease")
+
+prefix="${offerip%.*}"
+echo "Network portion is: ${prefix}.0/24"
+target="${prefix}.${host}"
+echo "Target address is: ${target}"
+echo
+
+# Build DHCP request for specific IP 
+mac=$(cat /sys/class/net/"$interface"/address)
+CID="01:$(echo "$mac" | tr '[:lower:]' '[:upper:]')"
+
+echo "Creating custom DHCP request config..."
+cat >"$tmp2" <<EOF
+interface "$interface" {
+  send dhcp-client-identifier $CID;
+  send dhcp-requested-address $target;
+  request subnet-mask, routers, domain-name-servers;
+  timeout 10;
+  retry 3;
+}
+EOF
+
+echo "Requesting address $target from DHCP server..."
+dhclient -r -v "$interface"
+rm -f "$pidf"
+dhclient -4 -v -1 -cf "$tmp2" -pf "$pidf" -lf "$lease" "$interface"
+
+echo
+final="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1)"
+echo "New address is: ${final}"
+echo
+echo "=== Script Finished ==="
