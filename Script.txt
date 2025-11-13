@@ -1,16 +1,11 @@
 #!/bin/bash
 
-# Check if user has sudo priveleges
+# Check if user has sudo priveleges, elevate if needed
 if [[ $EUID -ne 0 ]]; then
-  echo "This script needs root privileges. Re-running with sudo..."
+  echo "This script must run as root. Re-running with sudo..."
   exec sudo "$0" "$@"
 fi
-
-# Installing required packages
-sudo dnf install -y dhcp-client
-
 # Interface and file paths
-# Change interface if needed
 interface="ens160"
 lease="/var/lib/dhclient/dhclient-${interface}.leases"
 pidf="/run/dhclient-${interface}.pid"
@@ -18,7 +13,7 @@ tmp1="/tmp/dhclient-probe-${interface}.conf.$$"
 tmp2="/tmp/dhclient-request-${interface}.conf.$$"
 
 echo
-echo "=== DHCP Reservation Script ==="
+echo "=== DHCP Reservation Script (Debug Mode) ==="
 echo
 
 # Clean up old dhclient instances
