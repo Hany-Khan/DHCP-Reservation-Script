@@ -24,4 +24,5 @@ Originally developed for VMware NAT / Host-Only labs on Red Hat Enterprise Linux
 touch dhcpreserveration.sh
 - Give the file executable permissions
 chmod +x dhcpreservation.sh
-- Edit the file and paste the configurations from
+- Edit the file and paste the configurations from script.txt
+- Configure DHCP server
