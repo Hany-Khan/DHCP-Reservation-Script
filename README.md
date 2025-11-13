@@ -25,4 +25,5 @@ touch dhcpreserveration.sh
 - Give the file executable permissions
 chmod +x dhcpreservation.sh
 - Edit the file and paste the configurations from script.txt
-- Configure DHCP server
+- Run script
+sudo ./dhcp_requester.sh
