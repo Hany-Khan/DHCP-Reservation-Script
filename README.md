@@ -8,6 +8,7 @@ A Bash script that manually interacts with DHCP servers to:
 - Display whether the server accepted the request.
 Originally developed for VMware NAT / Host-Only labs on Red Hat Enterprise Linux 8.
 
+---
 
 ## Features
 - Discovers network prefix automatically.
@@ -15,3 +16,12 @@ Originally developed for VMware NAT / Host-Only labs on Red Hat Enterprise Linux
 - Generates temporary `dhclient.conf` files to control DHCP behavior.
 - Prints full debug output for learning or troubleshooting.
 - Works great for virtual lab environments or DHCP testing.
+
+---
+
+# Usage
+- Create the script file:
+touch dhcpreserveration.sh
+- Give the file executable permissions
+chmod +x dhcpreservation.sh
+- Edit the file and paste the configurations from
